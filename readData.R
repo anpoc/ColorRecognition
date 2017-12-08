@@ -36,3 +36,31 @@ X_treat <- (sigma_max-sigma_min)/(X_max-X_min)*(X-X_min)+sigma_min
 #  intento2 <- cbind(intento2, (sigma_max-sigma_min)/(X_max[i]-X_min[i])*(X[,i]-X_min[i])+sigma_min)
 #}
 #all.equal(X_treat,intento2)
+
+
+####################################################################################################
+
+# Defining the activation function
+sigmoid <- function(z){
+  return(1/(1 + exp(-z)))
+}
+
+
+# FORWARD
+# Including intercept in X and transposing the matrix
+n <- nrow(X)
+p <- ncol(X)
+k <- length(N)  #number of classes
+X_NN <- t(cbind(rep(1,n),X_treat))
+
+# Definig weights and number of neurons
+lenght_l1 <- 25
+Theta1 <- matrix(runif(lenght_l1*(p+1)),nrow=lenght_l1)
+ThetaF <- matrix(runif(k*(lenght_l1+1)),nrow=k)
+
+# Computaring neurons values and output
+l1 <- sigmoid(Theta1%*%X_NN)
+l1_i <- rbind(rep(1,n),l1)
+
+Y_classified <- apply(sigmoid(ThetaF%*%l1_i), 2, which.max)-1
+Empirical_error_NN = length(which(Y_classified != Y))/n
