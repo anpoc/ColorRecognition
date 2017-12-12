@@ -9,14 +9,32 @@ rm(list=ls()) # remove all objects from from the current workspace (R memory)
 
 # Data
 
-X <- runif(68500,0,180)
-X = matrix(X,685,100) 
-y <- sample(1:3,685, replace=T) #labels
+library("rjson")
+data <- fromJSON(file = "final_data.json")
+
+## DATA PROCESSING
+# Extracting the number of blue, red and green samples.
+# N[1]: blues, N[2]: reds, N[3]: greens
+N <- unname(sapply(data[[1]],'[[',2))
+
+# Generating the matrix samples X, vector Y 
+X <- c()
+for (i in 1:length(data[[2]])){
+  X <- rbind(X, as.vector(apply(as.matrix(data[[2]][[i]][[4]]), 1, function(x) unlist(x)))) #ASK!!!! t(M) if by row
+}
+
+y <- c(rep(1,N[1]),rep(2,N[2]),rep(3,N[3])) #1 - blue, 2 - red, 3 - green
+
+
+
+#X <- runif(68500,0,180)
+# X = matrix(X,685,100) 
+#y <- sample(1:3,685, replace=T) #labels
 
 n = dim(X)[1]
 q = dim(X)[2]
 
-# 4.- One-vs-all logistic regression: logistic classifier for the 3 colours. 
+# One-vs-all logistic regression: logistic classifier for the 3 colours. 
 
 
 num_labels = 3
