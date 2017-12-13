@@ -44,17 +44,6 @@ sigmoid <- function(z){
   return(1/(1 + exp(-z)))
 }
 
-
-## FORWARD PROPAGATION
-# Definig weights and number of neurons
-p <- ncol(X)
-k <- length(N)  #number of classes
-
-length_l1 <- 25
-Theta1 <- matrix(runif(length_l1*(p+1)),nrow=length_l1)
-ThetaF <- matrix(runif(k*(length_l1+1)),nrow=k)
-Weights <- c(as.vector(Theta1),as.vector(ThetaF))
-
 forward <- function(X, Weights, length_l1, p, k){
   # Weights
   Theta1 <- matrix(Weights[1:(length_l1*(p+1))],nrow=length_l1)
@@ -63,7 +52,7 @@ forward <- function(X, Weights, length_l1, p, k){
   # Including intercept in X and transposing the matrix
   n <- nrow(X)
   X_NN <- cbind(rep(1,n),X)
-
+  
   # Computaring neurons values and output
   l1 <- sigmoid(X_NN%*%t(Theta1))
   l1_i <- cbind(rep(1,n),l1)
@@ -79,9 +68,9 @@ forward <- function(X, Weights, length_l1, p, k){
 
 
 ## BACKWARD PROPAGATION
-nnminuslogLikelihood <- function(Weights, p, length_l1, k, num_labels, X, Y, lambda){
+nnminuslogLikelihood <- function(Weights, p, length_l1, k, X, Y, lambda){
   n <- dim(X)[1]
-
+  
   # Forward step
   forward_result <- forward(X, Weights, length_l1, p, k)
   Theta1 <- forward_result$Theta1
@@ -96,11 +85,10 @@ nnminuslogLikelihood <- function(Weights, p, length_l1, k, num_labels, X, Y, lam
 }
 
 
-nnminuslogLikelihood_grad <- function(Weights, p, length_l1, k, num_labels, X, Y, lambda){
+nnminuslogLikelihood_grad <- function(Weights, p, length_l1, k, X, Y, lambda){
   n <- dim(X)[1]
   
   # Forward step
-  X <- X_treat
   forward_result <- forward(X, Weights, length_l1, p, k)
   Theta1 <- forward_result$Theta1
   Theta2 <- forward_result$Theta2
@@ -120,11 +108,40 @@ nnminuslogLikelihood_grad <- function(Weights, p, length_l1, k, num_labels, X, Y
   grad = c(as.vector(Theta1_grad), as.vector(Theta2_grad))
 }
 
-#options = list(trace=1, iter.max=100) # print every iteration 
-backprop_result = nlminb(Weights, objective=nnminuslogLikelihood, 
-                    gradient = nnminuslogLikelihood_grad, hessian = NULL,
-                    p=p, length_l1=length_l1, k=k, num_labels=3, 
-                    X=X_treat, Y=Y, lambda=1)
-                    #control = options)
-#nn_params_backprop = backprop_result$par
-#cost = backprop_result$objective
+## FORWARD PROPAGATION
+# Definig weights and number of neurons
+p <- ncol(X)
+k <- length(N)  #number of classes
+set.seed(12345)
+TrainingSize <- floor(0.6*nrow(X))
+SelectRow <- sample(seq_len(nrow(X)), size = TrainingSize) 
+TrainingData <- X_treat[SelectRow, ]
+TrainingOutput <- Y[SelectRow, ]
+ValidationData <- X_treat[-SelectRow, ]
+ValidationOutput <- Y[-SelectRow, ]
+MSE_Training <- c()
+MSE_Testing <- c()
+
+
+
+for (i in 5:50){
+  Theta1 <- matrix(runif(i*(p+1)),nrow=i)
+  ThetaF <- matrix(runif(k*(i+1)),nrow=k)
+  Weights <- c(as.vector(Theta1),as.vector(ThetaF))
+
+  #options = list(trace=1, iter.max=100) # print every iteration 
+  backprop_result = nlminb(Weights, objective=nnminuslogLikelihood, 
+                      gradient = nnminuslogLikelihood_grad, hessian = NULL,
+                      p=p, length_l1=i, k=k, 
+                      X=TrainingData, Y=TrainingOutput, lambda=1)
+                      #control = options)
+  #nn_params_backprop = backprop_result$par
+  #cost = backprop_result$objective
+  
+  Weights_backp <- backprop_result$par
+
+  Y_Train <- forward(TrainingData, Weights_backp, i, p, k)$l2
+  Y_Test <- forward(ValidationData, Weights_backp, i, p, k)$l2
+  MSE_Training <- c(MSE_Training,sum((Y_Train-TrainingOutput)^2)/nrow(TrainingOutput))
+  MSE_Testing <- c(MSE_Testing,sum((Y_Test-ValidationOutput)^2)/nrow(ValidationOutput))
+}
