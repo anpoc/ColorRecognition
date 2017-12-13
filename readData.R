@@ -3,7 +3,7 @@ setwd('C:/Users/Asus/Documents/Project')
 library("rjson")
 data <- fromJSON(file = "final_data.json")
 
-## DATA PROCESSING
+### DATA PROCESSING
 # Extracting the number of blue, red and green samples.
 # N[1]: blues, N[2]: reds, N[3]: greens
 N <- unname(sapply(data[[1]],'[[',2))
@@ -15,7 +15,7 @@ for (i in 1:length(data[[2]])){
 }
 
 Y <- matrix(c(rep(c(0,0,1),N[1]),rep(c(0,1,0),N[2]),rep(c(1,0,0),N[3])), ncol = 3, byrow = TRUE)
-# Y <- c(rep(0,N[1]),rep(1,N[2]),rep(2,N[3]))
+#Y <- c(rep(0,N[1]),rep(1,N[2]),rep(2,N[3]))
 
 # Pretreatment of the data
 # [sigmamin,sigmamax] this is [0,1] for the logistic function
@@ -38,34 +38,93 @@ X_treat <- (sigma_max-sigma_min)/(X_max-X_min)*(X-X_min)+sigma_min
 
 ####################################################################################################
 
-## NEURONAL NETWORK
+### NEURONAL NETWORK
 # Defining the activation function
 sigmoid <- function(z){
   return(1/(1 + exp(-z)))
 }
 
-# FORWARD PROPAGATION
-# Including intercept in X and transposing the matrix
-n <- nrow(X)
+
+## FORWARD PROPAGATION
+# Definig weights and number of neurons
 p <- ncol(X)
 k <- length(N)  #number of classes
-X_NN <- t(cbind(rep(1,n),X_treat))
 
-# Definig weights and number of neurons
-lenght_l1 <- 25
-Theta1 <- matrix(runif(lenght_l1*(p+1)),nrow=lenght_l1)
-ThetaF <- matrix(runif(k*(lenght_l1+1)),nrow=k)
+length_l1 <- 25
+Theta1 <- matrix(runif(length_l1*(p+1)),nrow=length_l1)
+ThetaF <- matrix(runif(k*(length_l1+1)),nrow=k)
+Weights <- c(as.vector(Theta1),as.vector(ThetaF))
 
-# Computaring neurons values and output
-l1 <- sigmoid(Theta1%*%X_NN)
-l1_i <- rbind(rep(1,n),l1)
+forward <- function(X, Weights, length_l1, p, k){
+  # Weights
+  Theta1 <- matrix(Weights[1:(length_l1*(p+1))],nrow=length_l1)
+  Theta2 <- matrix(Weights[((length_l1*(p+1))+1):length(Weights)],nrow=k)
+  
+  # Including intercept in X and transposing the matrix
+  n <- nrow(X)
+  X_NN <- cbind(rep(1,n),X)
 
-Y_classified <- sigmoid(ThetaF%*%l1_i)
-Y_classified[which(apply(Y_classified, 2, function(x) x != max(x,na.rm=TRUE)))] <- 0
-Y_classified[which(apply(Y_classified, 2, function(x) x != 0))] <- 1
-# Y_classified <- apply(sigmoid(ThetaF%*%l1_i),2,FUN=which.max)
-# Empirical_error_NN <- length(which(Y_classified!=Y))/n
+  # Computaring neurons values and output
+  l1 <- sigmoid(X_NN%*%t(Theta1))
+  l1_i <- cbind(rep(1,n),l1)
+  l2 <- sigmoid(l1_i%*%t(Theta2))
+  
+  M <- apply(l2,1,max)
+  Y_classified <- floor(l2/M)
+  #Y_classified <- apply(sigmoid(ThetaF%*%l1_i),2,FUN=which.max)-1
+  #Empirical_error_NN <- length(which(Y_classified!=Y))/n
+  
+  return(list( Theta1=Theta1, Theta2=Theta2, l1=l1, l2= l2, Y_classified=Y_classified))
+}
 
 
 ## BACKWARD PROPAGATION
-# Loss function
+nnminuslogLikelihood <- function(Weights, p, length_l1, k, num_labels, X, Y, lambda){
+  n <- dim(X)[1]
+
+  # Forward step
+  forward_result <- forward(X, Weights, length_l1, p, k)
+  Theta1 <- forward_result$Theta1
+  Theta2 <- forward_result$Theta2
+  l2 <- forward_result$l2 
+  
+  # Computing the log-likelihood
+  J <- 0
+  J <- apply(-Y*log(l2),1,sum)-apply((1-Y)*log(1-l2),1,sum)
+  J <- sum(J)/n+(lambda/(2*n))*(sum(Theta1[,2:dim(Theta1)[2]]^2)+sum(Theta2[,2:dim(Theta2)[2]]^2))
+  return(J)
+}
+
+
+nnminuslogLikelihood_grad <- function(Weights, p, length_l1, k, num_labels, X, Y, lambda){
+  n <- dim(X)[1]
+  
+  # Forward step
+  X <- X_treat
+  forward_result <- forward(X, Weights, length_l1, p, k)
+  Theta1 <- forward_result$Theta1
+  Theta2 <- forward_result$Theta2
+  l1 <- forward_result$l1
+  l2 <- forward_result$l2 
+  
+  delta3 <- t(l2-Y)
+  Delta2 <- delta3%*%cbind(rep(1,n),l1)
+  delta2 <- (t(Theta2)%*%delta3)[2:(length_l1+1),]*(t(l1)*t(1-l1))
+  Delta1 <- delta2%*%cbind(rep(1,n),X)
+  
+  Theta1_grad = Delta1/n
+  Theta1_grad[, 2:dim(Theta1_grad)[2]] = Theta1_grad[, 2:dim(Theta1_grad)[2]] + (lambda/n) * Theta1[ ,2:dim(Theta1_grad)[2]]
+  Theta2_grad = Delta2/n
+  Theta2_grad[, 2:dim(Theta2_grad)[2]] = Theta2_grad[, 2:dim(Theta2_grad)[2]] + (lambda/n) * Theta2[ ,2:dim(Theta2_grad)[2]]
+  
+  grad = c(as.vector(Theta1_grad), as.vector(Theta2_grad))
+}
+
+#options = list(trace=1, iter.max=100) # print every iteration 
+backprop_result = nlminb(Weights, objective=nnminuslogLikelihood, 
+                    gradient = nnminuslogLikelihood_grad, hessian = NULL,
+                    p=p, length_l1=length_l1, k=k, num_labels=3, 
+                    X=X_treat, Y=Y, lambda=1)
+                    #control = options)
+#nn_params_backprop = backprop_result$par
+#cost = backprop_result$objective
