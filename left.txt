@@ -1,5 +1,0 @@
-- Write a Page for each of our parts (Everyone)
-- Comment ur code(Everyone)
-- Make a graph of error per hidden (units should be smooth, polyfit x^2 )(Andrea)
-- Have the misclassification matrix on the paper (Björn)
-- Have an example image reshape (Gabriel)
