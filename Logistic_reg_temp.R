@@ -27,12 +27,45 @@ y <- c(rep(1,N[1]),rep(2,N[2]),rep(3,N[3])) #1 - blue, 2 - red, 3 - green
 
 
 
+n = dim(X)[1]
+q = dim(X)[2]
+
+
+#for (temp in 1:dim(X)[1]) {
+#  X[temp,] = sort(X[temp,])
+#}
+
+
+set.seed(12345)
+train_p <- 0.8
+TrainingSize <- floor(train_p*nrow(X))
+SelectRow <- sample(seq_len(nrow(X)), size = TrainingSize) 
+
+X_train = X[c(SelectRow),]
+y_train = y[c(SelectRow)]
+X_test = X[-c(SelectRow),]
+y_test = y[-c(SelectRow)]
+
+
+#sorting.. Delete before submitting if not used
+#for (temp in 1:dim(X_train)[1]) {
+#  X_train[temp,] = sort(X_train[temp,])
+
+#}
+#for (temp in 1:dim(X_test)[1]) {
+#  X_test[temp,] = sort(X_test[temp,])
+
+#}
+
+n = dim(X_train)[1]
+q = dim(X_train)[2]
+
+# maybe it is possible to find the most common HUI value and then decide based on that??
+
 #X <- runif(68500,0,180)
 # X = matrix(X,685,100) 
 #y <- sample(1:3,685, replace=T) #labels
 
-n = dim(X)[1]
-q = dim(X)[2]
 
 # One-vs-all logistic regression: logistic classifier for the 3 colours. 
 
@@ -42,12 +75,14 @@ beta_one_vs_all = matrix(0,q + 1, num_labels)
 
 for (c in 1:num_labels) {
   
-  id_selected=which(y==c)
-  y_c = y
+  id_selected=which(y_train==c)
+  y_c = y_train
   y_c[-id_selected] = 0  
   y_c[id_selected] = 1
   
-  data = data.frame(y_c,X)
+  
+  
+  data = data.frame(y_c,X_train)
   model_glmfit_c = glm(y_c ~., data, start =rep(0,q+1) ,family=binomial(link="logit"),
                        control=list(maxit = 100, trace = FALSE) )
   beta_glmfit_c  = model_glmfit_c$coefficients # NA for linearly dependent vars
@@ -56,11 +91,14 @@ for (c in 1:num_labels) {
 beta_one_vs_all[, c] = beta_glmfit_c 
 }
 
-y_classified = apply( cbind(rep(1,n), X) %*% beta_one_vs_all , 1, FUN=which.max)
-Empirical_error_one_vs_all = length(which(y_classified != y)) / n
+y_classified = apply( cbind(rep(1,n), X_train) %*% beta_one_vs_all , 1, FUN=which.max) # why which.max??? Does not make sense in this case
+Empirical_error_one_vs_all = length(which(y_classified != y_train)) / n
 
+n = dim(X_test)[1]
+y_classified_test = apply( cbind(rep(1,n), X_test) %*% beta_one_vs_all , 1, FUN=which.max)
+Empirical_error_one_vs_all_test = length(which(y_classified_test != y_test)) / n
 
-# Confusion matrix
+# Confusion matrix - not working with train test yet.
 
 misclassification_matrix = matrix(0,num_labels, num_labels)
 for (i in 1:num_labels) {
@@ -69,5 +107,13 @@ misclassification_matrix[i, j] = length(which((y == i) & (y_classified == j))) /
 }
 }
 
+misclassification_matrix_test = matrix(0,num_labels, num_labels)
+for (l in 1:num_labels) {
+  for (k in 1:num_labels) {
+    misclassification_matrix_test[l, k] = length(which((y_test == l) & (y_classified_test == k))) / length(which((y_test == l)))
+  }
+}
 
 
+
+# ETA, MSE, which.max not logical, it classifies the position not the colour, the largest hui is the best
