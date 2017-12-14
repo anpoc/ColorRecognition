@@ -113,35 +113,53 @@ nnminuslogLikelihood_grad <- function(Weights, p, length_l1, k, X, Y, lambda){
 p <- ncol(X)
 k <- length(N)  #number of classes
 set.seed(12345)
-TrainingSize <- floor(0.6*nrow(X))
-SelectRow <- sample(seq_len(nrow(X)), size = TrainingSize) 
-TrainingData <- X_treat[SelectRow, ]
-TrainingOutput <- Y[SelectRow, ]
-ValidationData <- X_treat[-SelectRow, ]
-ValidationOutput <- Y[-SelectRow, ]
-MSE_Training <- c()
-MSE_Testing <- c()
 
+MSE_Training <- matrix(0, nrow=46, ncol=7)
+MSE_Testing <- matrix(0, nrow=46, ncol=7)
 
+W <- matrix(0, ncol=7*46, nrow=(50*(p+1)+k*(50+1)))
 
-for (i in 5:50){
-  Theta1 <- matrix(runif(i*(p+1)),nrow=i)
-  ThetaF <- matrix(runif(k*(i+1)),nrow=k)
-  Weights <- c(as.vector(Theta1),as.vector(ThetaF))
-
-  #options = list(trace=1, iter.max=100) # print every iteration 
-  backprop_result = nlminb(Weights, objective=nnminuslogLikelihood, 
-                      gradient = nnminuslogLikelihood_grad, hessian = NULL,
-                      p=p, length_l1=i, k=k, 
-                      X=TrainingData, Y=TrainingOutput, lambda=1)
-                      #control = options)
-  #nn_params_backprop = backprop_result$par
-  #cost = backprop_result$objective
+for (j in 1:7){
+  per <- 0.3+0.1*j
+  SelectRow <- c(sample(seq_len(N[1]), size = floor(per*N[1])), sample((seq_len(N[2])+N[1]), size = floor(per*N[2])), sample((seq_len(N[3])+N[1]+N[2]), size = floor(per*N[3]))) 
+  TrainingData <- X_treat[SelectRow, ]
+  TrainingOutput <- Y[SelectRow, ]
+  ValidationData <- X_treat[-SelectRow, ]
+  ValidationOutput <- Y[-SelectRow, ]
   
-  Weights_backp <- backprop_result$par
-
-  Y_Train <- forward(TrainingData, Weights_backp, i, p, k)$l2
-  Y_Test <- forward(ValidationData, Weights_backp, i, p, k)$l2
-  MSE_Training <- c(MSE_Training,sum((Y_Train-TrainingOutput)^2)/nrow(TrainingOutput))
-  MSE_Testing <- c(MSE_Testing,sum((Y_Test-ValidationOutput)^2)/nrow(ValidationOutput))
+  for (i in 5:50){
+    Theta1 <- matrix(runif(i*(p+1)),nrow=i)
+    ThetaF <- matrix(runif(k*(i+1)),nrow=k)
+    Weights <- c(as.vector(Theta1),as.vector(ThetaF))
+  
+    #options = list(trace=1, iter.max=100) # print every iteration 
+    backprop_result = nlminb(Weights, objective=nnminuslogLikelihood, 
+                        gradient = nnminuslogLikelihood_grad, hessian = NULL,
+                        p=p, length_l1=i, k=k, 
+                        X=TrainingData, Y=TrainingOutput, lambda=1)
+                        #control = options)
+    #nn_params_backprop = backprop_result$par
+    #cost = backprop_result$objective
+    
+    Weights_backp <- backprop_result$par
+    W[1:length(Weights_backp),(i-4)*j] <- Weights_backp 
+  
+    Y_Train <- forward(TrainingData, Weights_backp, i, p, k)$l2
+    Y_Test <- forward(ValidationData, Weights_backp, i, p, k)$l2
+    MSE_Training[(i-4),j] <- sum((Y_Train-TrainingOutput)^2)/nrow(TrainingOutput)
+    MSE_Testing[(i-4),j] <- sum((Y_Test-ValidationOutput)^2)/nrow(ValidationOutput)
+  }
+  write.csv(MSE_Training, "train.csv")
+  write.csv(MSE_Testing, "test.csv")
+  write.csv(W, "WeightsMatrix.csv")
 }
+
+
+
+#save(Weights, type = "weights.rda")
+
+#POLIFIT
+#layer <- 5:(length(MSE_Testing)+4)
+#plot(layer,MSE_Testing,type = "l", col = "red", ylim=c(0,1))
+#lines(layer, MSE_Training, col="black")
+
