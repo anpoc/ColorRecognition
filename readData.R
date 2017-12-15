@@ -163,7 +163,7 @@ for (j in 1:7){
   ValidationOutput <- Y[-SelectRow, ]
   
   # Loop for number of neurons in the hidden layer
-  for (i in 5:15){
+  for (i in 5:50){
     Theta1 <- matrix(runif(i * (p + 1)), nrow = i)
     ThetaF <- matrix(runif(k* (i + 1)), nrow = k)
     weights <- c(as.vector(Theta1), as.vector(ThetaF))
@@ -193,8 +193,8 @@ for (j in 1:7){
     MSE_Testing[(i - 4), j] <- sum((Y_Test-ValidationOutput)^2) / nrow(ValidationOutput)
   }
   
-  write.csv(MSE_Training, "train2.csv")
-  write.csv(MSE_Testing, "test2.csv")
+  write.csv(MSE_Training, "train.csv")
+  write.csv(MSE_Testing, "test.csv")
 }
 
 # Selecting the best performace neuronal network and training data size
