@@ -45,10 +45,10 @@ forward <- function(X, weights, size_hidden, size_input, size_output){
   
   # Including intercept in X and transposing the matrix
   n <- nrow(X)
-  X_NN <- cbind(rep(1, n), X)
+  X <- cbind(rep(1, n), X)
   
   # Computaring neurons values and output
-  l1 <- sigmoid(X_NN %*% t(Theta1))
+  l1 <- sigmoid(X %*% t(Theta1))
   l1_i <- cbind(rep(1, n), l1)
   l2 <- sigmoid(l1_i %*% t(Theta2))
   
@@ -197,17 +197,73 @@ for (j in 1:7){
   write.csv(MSE_Testing, "test.csv")
 }
 
+
+## PERFORMANCE ANALYSIS
 # Selecting the best performace neuronal network and training data size
 averagePerforming <- (apply(MSE_Testing, 2, sum) / nrow(MSE_Testing))[1:(ncol(MSE_Testing) - 1)]
 j <- which(averagePerforming == min(averagePerforming))
 per <- j * 0.1 + 0.3
-k <- which(MSE_Testing[, j] == min(MSE_Testing[, j])) + 4 
+i <- which(MSE_Testing[, j] == min(MSE_Testing[, j])) + 4 
 
 # Plotting the MSEs per number of neurons in the hidden layer -between 5 and 50 neurons-
 # for size of training data with better results  
-#Hidden_layer <- 5:(length(MSE_Testing) + 4)
-#plot(Hidden_layer, MSE_Testing[, ((per - 0.3) / 0.1)], type = "l", col = "red", ylim=c(0,1))
-#lines(Hidden_layer, MSE_Training[, ((per - 0.3) / 0.1)], col="black")
+Hidden_layer <- 5:(length(MSE_Testing[, ((per - 0.3) / 0.1)]) + 4)
+plot(Hidden_layer, MSE_Testing[, ((per - 0.3) / 0.1)], type = "l", col = "red", ylim=c(0,1))
+lines(Hidden_layer, MSE_Training[, ((per - 0.3) / 0.1)], col="black")
 
-#Weights_backp <- W[]
+# Getting the weights
+SelectRow <- c(sample(seq_len(N[1]), size = floor(per * N[1])),
+               sample((seq_len(N[2]) + N[1]), size = floor(per * N[2])),
+               sample((seq_len(N[3]) + N[1] + N[2]), size = floor(per * N[3])))
+TrainingData <- X_treat[SelectRow, ]
+TrainingOutput <- Y[SelectRow, ] 
+ValidationData <- X_treat[-SelectRow, ]
+ValidationOutput <- Y[-SelectRow, ]
+
+Theta1 <- matrix(runif(i * (p + 1)), nrow = i)
+ThetaF <- matrix(runif(k* (i + 1)), nrow = k)
+weights <- c(as.vector(Theta1), as.vector(ThetaF))
+
+#options <- list(trace = 1, iter.max = 100) # print every iteration 
+backp_result <- nlminb(weights, 
+                       objective   = nnminuslogLikelihood,
+                       gradient    = nnminuslogLikelihood_grad,
+                       hessian     = NULL,
+                       size_input  = p,
+                       size_hidden = i,
+                       size_output = k,
+                       X           = TrainingData,
+                       Y           = TrainingOutput,
+                       lambda      = 1)
+                      #control = options)
+
+# Getting the weights and saving them in the weights matrix
+Weights_backp <- backp_result$par
 #save(Weights_backp, file = "weights.rda")
+
+# Creating the confusion matrix for the testing sample with size 0.1
+# of total sample and with k number of neurons in the hidden layer.
+Y_classified <- forward(ValidationData, Weights_backp, i , p, k)$Y_classified
+
+Testing_actual <- max.col(ValidationOutput)
+Testing_actual[which(Testing_actual == 3)] <- "blue"
+Testing_actual[which(Testing_actual == 2)] <- "red"
+Testing_actual[which(Testing_actual == 1)] <- "green"
+
+Testing_predicted <- max.col(Y_classified)
+Testing_predicted[which(Testing_predicted == 3)] <- "blue"
+Testing_predicted[which(Testing_predicted == 2)] <- "red"
+Testing_predicted[which(Testing_predicted == 1)] <- "green"
+
+table <- table(Testing_actual, Testing_predicted)
+table
+
+# Measures of Performance
+# Percentage of the correctly classified predictions over all
+accuracy <- sum(diag(table)) / sum(table)
+# Fraction of correctly predicted of an actual class
+precision <- diag(table) / apply(table, 2, sum)
+# Fraction of correctly predicted of a predicted class
+recall <- diag(table) / apply(table, 1, sum)
+# Weighted average of precision and recall
+f1 <- 2 * precision * recall / (precision + recall)
