@@ -1,5 +1,5 @@
 ### IMPORTING THE DATA
-#setwd('C:/Users/Asus/Documents/Project')
+setwd('C:/Users/Asus/Documents/Project')
 #install.packages("rjson")
 library("rjson")
 data <- fromJSON(file = "final_data.json")
@@ -189,17 +189,19 @@ for (j in 1:7){
     # Saving them in the respective matrix. 
     Y_Train <- forward(TrainingData, Weights_backp, i, p, k)$l2
     Y_Test <- forward(ValidationData, Weights_backp, i, p, k)$l2
-    MSE_Training[(i - 4), j] <- sum((Y_Train-TrainingOutput)^2) / nrow(TrainingOutput)
-    MSE_Testing[(i - 4), j] <- sum((Y_Test-ValidationOutput)^2) / nrow(ValidationOutput)
+    MSE_Training[(i - 4), j] <- sum((Y_Train - TrainingOutput)^2) / nrow(TrainingOutput)
+    MSE_Testing[(i - 4), j] <- sum((Y_Test - ValidationOutput)^2) / nrow(ValidationOutput)
   }
   
-  write.csv(MSE_Training, "train.csv")
-  write.csv(MSE_Testing, "test.csv")
+  write.csv(MSE_Training, "Train.csv")
+  write.csv(MSE_Testing, "Test.csv")
 }
 
 
 ## PERFORMANCE ANALYSIS
 # Selecting the best performace neuronal network and training data size
+# MSE_Training <- as.matrix(read.csv("train.csv"))[,2:8]
+# MSE_Testing <- as.matrix(read.csv("test.csv"))[,2:8]
 averagePerforming <- (apply(MSE_Testing, 2, sum) / nrow(MSE_Testing))[1:(ncol(MSE_Testing) - 1)]
 j <- which(averagePerforming == min(averagePerforming))
 per <- j * 0.1 + 0.3
@@ -208,7 +210,7 @@ i <- which(MSE_Testing[, j] == min(MSE_Testing[, j])) + 4
 # Plotting the MSEs per number of neurons in the hidden layer -between 5 and 50 neurons-
 # for size of training data with better results  
 Hidden_layer <- 5:(length(MSE_Testing[, ((per - 0.3) / 0.1)]) + 4)
-plot(Hidden_layer, MSE_Testing[, ((per - 0.3) / 0.1)], type = "l", col = "red", ylim=c(0,1))
+plot(Hidden_layer, MSE_Testing[, ((per - 0.3) / 0.1)], type = "l", col = "red", ylim=c(0,0.5))
 lines(Hidden_layer, MSE_Training[, ((per - 0.3) / 0.1)], col="black")
 
 # Getting the weights
